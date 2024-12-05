@@ -1,0 +1,23 @@
+desiredcruisespeed = 5;
+
+aircraft = AircraftPowerModel.AircraftPowerModel(0.5);
+pHorizontal = aircraft.calcHorizontalPower(desiredcruisespeed);
+experimentName = 'LearningSoC';
+wayPoints = [0,0,100;10,10,100;50,50,100;100,100,100];
+EnergyRequirement.generateEnergyRequirement(experimentName, wayPoints)
+
+
+
+
+function [totaldistance] = calculatedistance(waypoints)
+
+totaldistance=0;
+for i=1:length(waypoints)-1
+    totaldistance=totaldistance+norm(waypoints(i+1,:)-waypoints(i,:));
+end
+end
+
+function [timeinterval] = calculatetime(distance,desiredcruisespeed)
+timeinterval=[0 distance/desiredcruisespeed];
+end
+
