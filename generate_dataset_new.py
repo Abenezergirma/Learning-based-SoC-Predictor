@@ -15,7 +15,7 @@ class TarotBattery:
         self.f = open(filename, 'w')
 
     # Updated `step` function with current clipping and corrected time_step
-    def step(self, currentNeeded, V_min=18, V_max=27.4, max_current=200):  # Set max_current based on battery specs
+    def step(self, currentNeeded, V_min=18, V_max=25.2, max_current=200):  # Set max_current based on battery specs
         self.t += self.time_step
         try:
             # Clip current to the maximum allowable value
@@ -36,12 +36,12 @@ class TarotBattery:
             return None, None
 
     # Function to generate training and test datasets
-    def generate_dataset(self, current_input, num_training=70, num_test=30, scaling_range=(0.6, 1.2)):
+    def generate_dataset(self, current_input, num_training=70, num_test=30, scaling_range=(0.9, 1)):
         # Remove the first few elements to avoid high initial currents
-        current_input = current_input[50:]
+        current_input = current_input[1:]
         
         # Undersample the original trajectory to match the desired time step of 0.1s
-        current_input_undersampled = current_input[::100]
+        current_input_undersampled = current_input
         print(f"Undersampled current trajectory to time step of 0.1s with length {len(current_input_undersampled)}")
 
         training_data = []
@@ -127,23 +127,21 @@ class TarotBattery:
         plt.tight_layout()
         plt.show()
 
-# Load the realistic current trajectory from EnergyReq.mat
+# Load the realistic current trajectory for the second aircraft from EnergyReq.mat
 energy_req = loadmat('EnergyReq.mat')
-plt.plot(np.transpose(np.array(energy_req['results'][1][-1])),energy_req['results'][1][1])
-plt.show()
-# current_input = energy_req['current']  # Replace 'current' with the actual key in your .mat file
+current_input = energy_req['results'][1][1].flatten()  # Extract and flatten the current profile
 
-# # Initialize the battery model
-# battery = TarotBattery(0.1, 'battery_output.txt')
+# Initialize the battery model
+battery = TarotBattery(0.1, 'battery_output.txt')
 
-# # Generate training and test datasets
-# training_data, test_data = battery.generate_dataset(current_input, num_training=70, num_test=30, scaling_range=(0.3, 0.8))
+# Generate training and test datasets
+training_data, test_data = battery.generate_dataset(current_input, num_training=7, num_test=3, scaling_range=(0.8, 1))
 
-# # Save the training and test datasets
-# np.save('training_data.npy', training_data)
-# np.save('test_data.npy', test_data)
+# Save the training and test datasets
+np.save('training_data.npy', training_data)
+np.save('test_data.npy', test_data)
 
-# # Plot the datasets
-# battery.plot_combined_results(training_data, test_data)
+# Plot the datasets
+battery.plot_combined_results(training_data, test_data)
 
-# print("Training and test datasets have been generated and saved.")
+print("Training and test datasets have been generated and saved.")
