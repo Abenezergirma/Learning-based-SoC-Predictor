@@ -2,19 +2,19 @@ function generateEnergyReqiurement(experimentName, wayPoints)
 % This script is used to generate battery related parameters (such as voltage, current) for the full
 % flight mission
 % clear all; clc
-projectPath ='/home/abenezertaye/Desktop/Research/Codes/Learning-based-SoC-Predictor';
+projectPath ='/home/abenezertaye/Desktop/Research/Codes/Learning-based-SoC-Predictor/PowerConsumption';
 
 
 %% Define File and Path Related Properties
 % Define all file and path-related properties in a structured way
 % Define model path
-modelPath='/home/abenezertaye/Desktop/Research/Codes/Learning-based-SoC-Predictor/+EnergyRequirement/UAVSimulinkModel';
+modelPath='/home/abenezertaye/Desktop/Research/Codes/Learning-based-SoC-Predictor//PowerConsumption/+EnergyRequirement/UAVSimulinkModel';
 
 % Create an instance of SimulinkUAVWrapper and set properties
 T18Wrapper = EnergyRequirement.SimulinkUAVWrapper(modelPath);
 T18Wrapper.modelScript = 'runDetailedT18Model';
 T18Wrapper.experimentName = strcat(experimentName,'fullMissionBatteryParams.mat');
-T18Wrapper.resultsPath='/home/abenezertaye/Desktop/Research/Codes/Learning-based-SoC-Predictor/EnergyRequirementResults';
+T18Wrapper.resultsPath='/home/abenezertaye/Desktop/Research/Codes/Learning-based-SoC-Predictor/PowerConsumption/EnergyRequirementResults';
 
 % Construct the full path for battery parameters
 T18Wrapper.BatteryParams = fullfile(T18Wrapper.resultsPath,T18Wrapper.experimentName);

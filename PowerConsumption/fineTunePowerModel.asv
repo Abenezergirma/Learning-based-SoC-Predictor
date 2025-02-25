@@ -1,0 +1,93 @@
+% Fine-Tuning AircraftPowerModel Efficiency Factors (eta values)
+% This script fine-tunes the efficiency factors (eta_h, eta_c, eta_hor) of the AircraftPowerModel
+% by comparing its output with the Simulink-based dynamic model results.
+
+% Initialize AircraftPowerModel
+aircraft = AircraftPowerModel.AircraftPowerModel(0.5);
+
+% Define the experiment parameters
+experimentName = 'ClimbPhaseExperiment';
+desiredCruiseSpeed = 5; % m/s (example value)
+wayPoints = [0, 0, 100; 0, 0, 110; 0, 0, 120; 0, 0, 130; 0, 0, 140];
+wayPoints_cruise = [0, 0, 140;20, 0, 140;
+    40, 0, 140;
+    60, 0, 140;
+    80, 0, 140;
+    100, 0, 140
+];
+
+
+% Define optimization parameters
+learningRate = 0.01; % Learning rate for eta adjustment
+numIterations = 1000; % Number of optimization iterations
+
+% Initialize eta values for different flight segments
+eta_c = 0.14; % Initial guess for climb efficiency
+eta_h = 0.9;  % Initial guess for hover efficiency
+eta_hor = 0.85; % Initial guess for horizontal flight efficiency
+
+% Optimization loop for eta_c (climb efficiency)
+prevMSE = inf;
+minMSE = inf;
+best_eta_c = eta_c;
+delta = 1e-4; % Increased delta for better gradient estimation
+
+for iter = 1:numIterations
+    % Update AircraftPowerModel with the current eta_c
+    aircraft.eta_c = eta_c;
+    
+    % Run Simulink model
+    % EnergyRequirement.generateEnergyRequirement(experimentName, wayPoints);
+    load(fullfile('EnergyRequirementResults', 'LearningSoCfullMissionBatteryParams.mat'));
+    voltage = results{2};
+    current = results{3};
+    batteryTime = results{7};
+    simPowerProfile = voltage .* current;
+
+    % Calculate AircraftPowerModel's climb power
+    climbPower = aircraft.calcClimbPower(desiredCruiseSpeed);
+    powerProfileModel = repmat(climbPower, length(batteryTime), 1);
+    
+    % Compute loss (Logarithmic Mean Squared Error)
+    mse = mean((log(simPowerProfile + 1e-6) - log(powerProfileModel + 1e-6)).^2);
+    fprintf('Iteration %d: MSE = %.6f | eta_c = %.4f\n', iter, mse, eta_c);
+    
+    % Track the best eta_c with minimum MSE
+    if mse < minMSE
+        minMSE = mse;
+        best_eta_c = eta_c;
+    end
+    
+    % Adaptive learning rate adjustment for stability
+    if mse > prevMSE
+        learningRate = learningRate * 0.7; % Reduce learning rate if error increases
+    else
+        learningRate = learningRate * 1.1; % Increase if error decreases
+    end
+    prevMSE = mse;
+    
+    % Compute gradient and update eta_c with normalization
+    aircraft.eta_c = eta_c + delta;
+    perturbedPower = aircraft.calcClimbPower(desiredCruiseSpeed);
+    perturbedProfile = repmat(perturbedPower, length(batteryTime), 1);
+    perturbedMSE = mean((log(simPowerProfile + 1e-6) - log(perturbedProfile + 1e-6)).^2);
+    grad_eta_c = ((perturbedMSE - mse) / delta) / (abs(mse) + 1e-6);
+
+    % Bound eta_c to prevent unrealistic values
+    eta_c = max(min(eta_c - learningRate * grad_eta_c, 1), 0.01);
+    
+    % Plot comparison after each update
+    figure(1); clf;
+    plot(batteryTime, simPowerProfile, 'LineWidth', 2, 'DisplayName', 'Simulink Model');
+    hold on;
+    plot(batteryTime, powerProfileModel, '--', 'LineWidth', 2, 'DisplayName', 'AircraftPowerModel');
+    xlabel('Time (s)'); ylabel('Power (W)');
+    title(sprintf('Iteration %d: Power Profile Comparison', iter));
+    legend('Location', 'Best'); grid on;
+    drawnow;
+end
+
+fprintf('Optimized eta_c: %.4f\n', best_eta_c);
+
+% Save the best eta_c corresponding to the minimum MSE
+save('EnergyRequirementResults/OptimizedEtaC.mat', 'best_eta_c');
